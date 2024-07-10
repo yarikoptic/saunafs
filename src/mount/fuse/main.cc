@@ -38,6 +38,7 @@
 #include "mount/g_io_limiters.h"
 #include "mount/mastercomm.h"
 #include "mount/masterproxy.h"
+#include "mount/option_casing_normalization.h"
 #include "mount/readdata.h"
 #include "mount/stats.h"
 #include "mount/symlinkcache.h"
@@ -505,6 +506,8 @@ static int read_masterhost_if_present(struct fuse_args *args) {
 int main(int argc, char *argv[]) try {
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 	struct fuse_args defaultargs = FUSE_ARGS_INIT(0, NULL);
+
+	normalize_options_casing(args);
 
 	fuse_opt_add_arg(&defaultargs, "fakeappname");
 

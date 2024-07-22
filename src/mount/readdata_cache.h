@@ -38,6 +38,9 @@
 
 #define MISSING_OFFSET_PTR nullptr
 
+inline std::mutex gUsedReadCacheMemoryMutex;
+inline uint64_t gUsedReadCacheMemory;
+
 class ReadCache {
 public:
 	typedef uint64_t Offset;
@@ -285,8 +288,7 @@ public:
 	 *
 	 * \return cache query result
 	 */
-	void query(Offset offset, Size size, ReadCache::Result &result,
-	           bool insertPending = true) {
+	void query(Offset offset, Size size, ReadCache::Result &result, bool insertPending = true) {
 		collectGarbage();
 
 		auto it = entries_.upper_bound(offset, Entry::OffsetComp());
@@ -397,6 +399,9 @@ protected:
 	EntrySet::iterator erase(EntrySet::iterator it) {
 		assert(it != entries_.end());
 		Entry *e = std::addressof(*it);
+		std::unique_lock lock(gUsedReadCacheMemoryMutex);
+		gUsedReadCacheMemory -= e->buffer.size();
+		lock.unlock();
 		auto ret = entries_.erase(it);
 		lru_.erase(lru_.iterator_to(*e));
 		if (e->refcount > 0) {
@@ -412,6 +417,9 @@ protected:
 		while (!reserved_entries_.empty() && count-- > 0) {
 			Entry *e = std::addressof(reserved_entries_.front());
 			if (e->refcount == 0) {
+				std::unique_lock lock(gUsedReadCacheMemoryMutex);
+				gUsedReadCacheMemory -= e->buffer.size();
+				lock.unlock();
 				reserved_entries_.pop_front();
 				delete e;
 			} else {
@@ -422,7 +430,8 @@ protected:
 		}
 	}
 
-	EntrySet::iterator clearCollisions(EntrySet::iterator it, Offset start_offset) {
+	EntrySet::iterator clearCollisions(EntrySet::iterator it,
+										Offset start_offset) {
 		while (it != entries_.end() && it->offset < start_offset) {
 			if (it->done && it->offset + it->requested_size > start_offset) {
 				it = erase(it);

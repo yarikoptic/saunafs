@@ -20,7 +20,7 @@
 
 #include "common/platform.h"
 
-#include "mount/option_casing_normalization.h"
+#include "mount/fuse/option_casing_normalization.h"
 
 #include <gtest/gtest.h>
 

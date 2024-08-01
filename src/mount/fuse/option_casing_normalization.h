@@ -21,6 +21,7 @@
 
 #include <cstring>
 #include <fuse.h>
+#include <string>
 
 /**
  * @brief Normalize a single argument casing by converting uppercase characters

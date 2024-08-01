@@ -35,10 +35,10 @@
 #include "mount/fuse/sfs_fuse.h"
 #include "mount/fuse/sfs_meta_fuse.h"
 #include "mount/fuse/mount_config.h"
+#include "mount/fuse/option_casing_normalization.h"
 #include "mount/g_io_limiters.h"
 #include "mount/mastercomm.h"
 #include "mount/masterproxy.h"
-#include "mount/option_casing_normalization.h"
 #include "mount/readdata.h"
 #include "mount/stats.h"
 #include "mount/symlinkcache.h"
@@ -520,8 +520,20 @@ int main(int argc, char *argv[]) try {
 	if (!gCustomCfg)
 		sfs_opt_parse_cfg_file(DEFAULT_SFSMOUNT_CONFIG_PATH, 1, &defaultargs);
 
+	normalize_options_casing(defaultargs);
+
 	if (fuse_opt_parse(&defaultargs, &gMountOptions, gSfsOptsStage2, sfs_opt_proc_stage2))
 		exit(1);
+
+	if (defaultargs.argc > 1) {
+		fprintf(stderr, "Unexpected/wrong option(s) at cfg file:\n");
+		for (int i = 1; i < defaultargs.argc; i++) {
+			if (strcmp(defaultargs.argv[i], "-o") != 0) {
+				fprintf(stderr, "%s\n", defaultargs.argv[i]);
+			}
+		}
+		exit(1);
+	}
 
 	if (fuse_opt_parse(&args, &gMountOptions, gSfsOptsStage2, sfs_opt_proc_stage2))
 		exit(1);

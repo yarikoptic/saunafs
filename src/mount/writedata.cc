@@ -136,6 +136,7 @@ struct ChunkData {
 	bool workerWaitingForData;
 	ChunkData *next; // for iterating through the chunkdata of an inode
 	std::unique_ptr<WriteChunkLocator> locator;
+	std::atomic<int> beingWritten;
 
 	ChunkData(uint32_t chunkIndex, inodedata *parent)
 	    : chunkIndex(chunkIndex),
@@ -144,6 +145,7 @@ struct ChunkData {
 	      inQueue(false),
 	      workerWaitingForData(false),
 	      next(nullptr),
+	      beingWritten(0),
 	      parent_(parent) {
 #ifdef _WIN32
 		// We don't use inodeData->waitingworker and inodeData->pipe on Cygwin because
@@ -198,8 +200,8 @@ struct ChunkData {
 
 	void updateParentStatus(int8_t status) { parent_->status = status; }
 
-	int8_t getParentStatus() { 
-		return parent_->status; 
+	int8_t getParentStatus() {
+		return parent_->status;
 	}
 
 	bool requiresFlushing() const {
@@ -455,7 +457,9 @@ void write_job_delayed_end(ChunkData* chunkData, int status, int seconds, Glock 
 		// Don't sleep if we have to write all the data immediately
 		seconds = 0;
 	}
-	if (!chunkData->dataChain.empty() && status == SAUNAFS_STATUS_OK) { // still have some work to do
+	if (chunkData->beingWritten) {
+		write_enqueue(chunkData, lock);
+	} else if (!chunkData->dataChain.empty() && status == SAUNAFS_STATUS_OK) { // still have some work to do
 		chunkData->tryCounter = 0; // on good write reset try counter
 		write_delayed_enqueue(chunkData, seconds, lock);
 	} else {        // no more work or error occurred
@@ -802,7 +806,7 @@ void write_data_term(void) {
 		pthread_join(write_worker_th[i], NULL);
 	}
 	pthread_join(delayed_queue_worker_th, NULL);
-	queue_delete(jqueue, queue_deleter_delete<inodedata>);
+	queue_delete(jqueue, queue_deleter_delete<ChunkData>);
 	for (i = 0; i < IDHASHSIZE; i++) {
 		for (id = idhash[i]; id; id = idn) {
 			idn = id->next;
@@ -862,8 +866,10 @@ int write_blocks(inodedata *id, uint64_t offset, uint32_t size,
 	uint32_t from = offset & SFSBLOCKMASK;
 	while (size > 0) {
 		ChunkData *chunkData = write_get_chunkdata(chindx, id);
+		chunkData->beingWritten++;
 		if (size > SFSBLOCKSIZE - from) {
 			if (write_block(chunkData, pos, from, SFSBLOCKSIZE, data) < 0) {
+				chunkData->beingWritten--;
 				return SAUNAFS_ERROR_IO;
 			}
 			size -= (SFSBLOCKSIZE - from);
@@ -876,10 +882,12 @@ int write_blocks(inodedata *id, uint64_t offset, uint32_t size,
 			}
 		} else {
 			if (write_block(chunkData, pos, from, from + size, data) < 0) {
+				chunkData->beingWritten--;
 				return SAUNAFS_ERROR_IO;
 			}
 			size = 0;
 		}
+		chunkData->beingWritten--;
 	}
 	return 0;
 }

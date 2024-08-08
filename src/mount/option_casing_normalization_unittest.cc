@@ -1,6 +1,4 @@
 /*
-   Copyright 2013-2014 EditShare
-   Copyright 2013-2015 Skytechnology sp. z o.o.
    Copyright 2023      Leil Storage OÜ
 
    This file is part of SaunaFS.
@@ -20,7 +18,7 @@
 
 #include "common/platform.h"
 
-#include "mount/fuse/option_casing_normalization.h"
+#include "mount/option_casing_normalization.h"
 
 #include <gtest/gtest.h>
 

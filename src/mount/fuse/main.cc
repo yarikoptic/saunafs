@@ -35,10 +35,10 @@
 #include "mount/fuse/sfs_fuse.h"
 #include "mount/fuse/sfs_meta_fuse.h"
 #include "mount/fuse/mount_config.h"
-#include "mount/fuse/option_casing_normalization.h"
 #include "mount/g_io_limiters.h"
 #include "mount/mastercomm.h"
 #include "mount/masterproxy.h"
+#include "mount/option_casing_normalization.h"
 #include "mount/readdata.h"
 #include "mount/stats.h"
 #include "mount/symlinkcache.h"
@@ -507,7 +507,7 @@ int main(int argc, char *argv[]) try {
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 	struct fuse_args defaultargs = FUSE_ARGS_INIT(0, NULL);
 
-	normalize_options_casing(args);
+	normalize_options_casing(args.argc, args.argv);
 
 	fuse_opt_add_arg(&defaultargs, "fakeappname");
 
@@ -520,7 +520,7 @@ int main(int argc, char *argv[]) try {
 	if (!gCustomCfg)
 		sfs_opt_parse_cfg_file(DEFAULT_SFSMOUNT_CONFIG_PATH, 1, &defaultargs);
 
-	normalize_options_casing(defaultargs);
+	normalize_options_casing(defaultargs.argc, defaultargs.argv);
 
 	if (fuse_opt_parse(&defaultargs, &gMountOptions, gSfsOptsStage2, sfs_opt_proc_stage2))
 		exit(1);

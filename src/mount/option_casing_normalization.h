@@ -1,6 +1,7 @@
 /*
    Copyright 2023      Leil Storage OÜ
 
+   This file is part of SaunaFS.
 
    SaunaFS is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +21,6 @@
 #include "common/platform.h"
 
 #include <cstring>
-#include <fuse.h>
 #include <string>
 
 /**
@@ -56,21 +56,21 @@ void normalize_argument_casing(char *arg) {
  * @brief Normalize options casing by converting uppercase characters in the
  * options names to its lowercase equivalent.
  */
-void normalize_options_casing(struct fuse_args &args) {
+void normalize_options_casing(int argc, char *argv[]) {
 	bool is_previous_dash_o = false;
-	for (int index = 1; index < args.argc; index++) {
-		size_t current_arg_len = strlen(args.argv[index]);
+	for (int index = 1; index < argc; index++) {
+		size_t current_arg_len = strlen(argv[index]);
 		if (is_previous_dash_o ||
-			(current_arg_len > 2 && args.argv[index][0] == '-' &&
-				(args.argv[index][1] == 'o' || args.argv[index][1] == '-'))) {
+		    (current_arg_len > 2 && argv[index][0] == '-' &&
+		     (argv[index][1] == 'o' || argv[index][1] == '-'))) {
 			if (is_previous_dash_o) {
-				normalize_argument_casing(args.argv[index]);
+				normalize_argument_casing(argv[index]);
 			} else {
-				normalize_argument_casing(args.argv[index] + 2);
+				normalize_argument_casing(argv[index] + 2);
 			}
 			is_previous_dash_o = false;
 			continue;
 		}
-		is_previous_dash_o = (strcmp(args.argv[index], "-o") == 0);
+		is_previous_dash_o = (strcmp(argv[index], "-o") == 0);
 	}
 }
